@@ -53,9 +53,18 @@
   * {
     @apply border-border;
   }
+  html {
+    color-scheme: dark;
+  }
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  button, input, textarea, select {
+    font: inherit;
+  }
+  @media print {
+    .grid-pattern { background-image: none; }
   }
 }
 
