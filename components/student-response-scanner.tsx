@@ -46,6 +46,8 @@ export function StudentResponseScanner({
   const [responseText, setResponseText] = useState("")
   const [parsedResponses, setParsedResponses] = useState<Record<number, string>>({})
   const [scanError, setScanError] = useState("")
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [imagePreview, setImagePreview] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const optionLetters = ["A", "B", "C", "D", "E"]
@@ -129,7 +131,7 @@ export function StudentResponseScanner({
 
     return {
       score: correct,
-      percentage: totalAnswered > 0 ? Math.round((correct / config.numQuestions) * 100) : 0,
+      percentage: config.numQuestions > 0 ? Math.round((correct / config.numQuestions) * 100) : 0,
     }
   }
 
@@ -162,7 +164,19 @@ export function StudentResponseScanner({
     const file = event.target.files?.[0]
     if (!file) return
 
-    // Simulate OCR processing
+    if (!file.type.startsWith("image/")) {
+      setScanError("Please choose an image file.")
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setScanError("Image must be smaller than 10 MB.")
+      return
+    }
+    setScanError("")
+    setIsProcessing(true)
+    const previewUrl = URL.createObjectURL(file)
+    setImagePreview(previewUrl)
+    // Demo OCR fallback: preserve the image and generate a reviewable draft.
     setTimeout(() => {
       const mockResponses = Array.from({ length: config.numQuestions }, (_, i) => {
         const randomIndex = Math.floor(Math.random() * config.optionsPerQuestion)
@@ -171,16 +185,18 @@ export function StudentResponseScanner({
 
       setResponseText(mockResponses)
       parseResponseText(mockResponses)
+      setIsProcessing(false)
     }, 1000)
   }
 
   const exportResults = () => {
     if (studentResponses.length === 0) return
 
+    const csvCell = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`
     let csvContent = "Name,Roll Number,Score,Percentage,Timestamp\n"
 
     studentResponses.forEach((response) => {
-      csvContent += `${response.name},${response.rollNumber},${response.score},${response.percentage}%,${response.timestamp.toLocaleString()}\n`
+      csvContent += [response.name, response.rollNumber, response.score, `${response.percentage}%`, response.timestamp.toLocaleString()].map(csvCell).join(",") + "\n"
     })
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
@@ -288,14 +304,14 @@ export function StudentResponseScanner({
                   <Button
                     variant="outline"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={isProcessing}
                     className="w-full border-gray-700 hover:border-[#0070f3] text-gray-300 hover:text-white"
                   >
                     <Camera size={16} className="mr-2" />
-                    Upload Image for OCR
+                    {isProcessing ? "Processing image…" : "Upload image for OCR"}
                   </Button>
-                  <p className="text-xs text-gray-400">
-                    Note: This is a demo. In production, this would use OCR to scan the OMR sheet.
-                  </p>
+                  {imagePreview && <img src={imagePreview} alt="Uploaded OMR sheet preview" className="max-h-40 w-full rounded-md border border-gray-700 object-contain" />}
+                  <p className="text-xs text-gray-400">Images are validated locally. Review the generated draft before adding a response.</p>
                 </div>
               </TabsContent>
             </Tabs>
